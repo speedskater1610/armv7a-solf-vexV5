@@ -1,4 +1,4 @@
-# ARMv7-Compatible Soft CPU — Cmod S7 + ESP32 Memory
+# ARMv7-Compatible Soft CPU - Cmod S7 + ESP32 Memory Controller + Cmod S6 IO Controller
 ## Project Overview
 
 A 3-stage pipelined ARMv7-compatible processor implemented on the **Digilent Cmod S7-25**
@@ -11,7 +11,7 @@ correct output behavior (ISA-accurate, not microarchitecture-accurate).
 
 ```
 ┌─────────────────────────────────────────────┐
-│              Cmod S7-25 FPGA                │
+│              Cmod S7-25 FPGA  (CPU1)        │
 │                                             │
 │  ┌──────────┐    ┌──────────┐               │
 │  │  FETCH   │───>│  DECODE  │               │
@@ -23,24 +23,51 @@ correct output behavior (ISA-accurate, not microarchitecture-accurate).
 │       │         │  Stage    │               │
 │       │         └────┬──────┘               │
 │       │              │                      │
-│  ┌────┴──────────────▼────┐                 │
-│  │      MEM BUS           │                 │
-│  │  (handshake FSM)       │                 │
-│  └───────────────────────┬┘                 │
-│                          │                  │
-└──────────────────────────┼──────────────────┘
-                           │ 48 PIO pins +
-                           │ 4 PMOD pins
-┌──────────────────────────┼──────────────────┐
-│         ESP32            │                  │
-│                          │                  │
-│  ┌───────────────────────┴────┐             │
-│  │  Memory Controller         │             │
-│  │  (65536 × 32-bit words)    │             │
-│  │  = 256KB address space     │             │
-│  └────────────────────────────┘             │
-└─────────────────────────────────────────────┘
+│  ┌────┴──────────────▼────┐        ┌─────┐  │
+│  │      MEM BUS           │        | GND |  │
+│  │  (handshake FSM)       │        └─────┘  │
+│  └───────────────────────┬┘           |     │────┐
+│                          │            |     │    |
+└──────────────────────────┼────────────┼─────┘    |
+                           │            |          |
+                           │            |          |
+┌──────────────────────────┼────────────┼─────┐    |
+│         ESP32            │            |     │    |  ┌──────┐
+│                          │            |     │    |  | UART |
+|                          |            |     |    |  | RxTx |
+│  ┌───────────────────────┴────┐    ┌─────┐  │    |  └──────┘
+│  │  Memory Controller         │    | GND |  │    |
+│  │  (65536 × 32-bit words)    │    └─────┘  │    |
+│  │  = 256KB address space     │       |     │    |
+│  └───────────────────────┼────┘       |     │    |
+└──────────────────────────┼────────────|─────┘    |
+                           |            |          |
+┌──────────────────────────┼────────────┼─────┐    |
+│         Cmod-S6          └─────┐      |     │    | 
+│         ┌─────────────────┐    |      |     │    |  
+│         |   Connects to   |    |      |     │    | 
+│         |  all of the IO  |    |   ┌─────┐  |    |
+|         |                 |    |   | GND |  │    |
+│         |(Screen included)|    |   └─────┘  │    |
+│         |                 |    |            │    |
+│         └─────────────────┘────|────────────|────┘
+└─────┼┼─────────────────────────┼────────────┘
+      ||  I2C                    |
+┌─────┼┼─────────────┐───────────┘ 80 bytes of memory for the screen from 0x0
+|                    |
+|      2004 LCD      |
+|                    |
+|                    |
+└────────────────────┘
 ```
+
+### Memory map
+| Start Address | End Address | Size (words) | Description |
+| --- | --- | --- | ---  |
+| 0x00000000    | 0x0003FFFF  | 256000       | This is the entire raw memory of the device |
+| 0x00000000    | 0x00000050  | 80           | This is all of the data for the screen. |
+| 0x0x00000051  | 0x | | Area of memeory dedicated to metadata of devices on the devicce |
+
 
 ### Pipeline Stages
 | Stage   | Description                                      |
@@ -54,6 +81,13 @@ Branches flush 2 pipeline stages (ARM PC+8 convention).
 
 ---
 
+## Device structure
+1 word for type of device (enum like)
+1 word for the port it is connected to
+1 word for the the 
+
+---
+<!--
 ## File Structure
 
 ```
@@ -73,6 +107,7 @@ armv7_cmod_s7/
 ```
 
 ---
+-->
 
 ## Pin Wiring — FPGA ↔ ESP32
 
